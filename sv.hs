@@ -23,6 +23,7 @@
 import System.Environment
 import System.IO
 import Data.List
+import Text.EditDistance
 
 -- ===============================================
 -- PART #1: CODE TO IMPLEMENT THE VARIETY FUNCTION
@@ -101,18 +102,31 @@ maximalVarietyLeibnizian n = foldl1 max $ map varietyP $ filter leibnizianQ $ sp
     where
         chars = ["X","-"]
 
+-- Returns a list of maximal variety Leibnizian strings of length n.
+maximalVarietyLeibnizianStrings n = filter (\x -> varietyP x == m) $ filter leibnizianQ $ space chars n
+    where
+        m = maximalVarietyLeibnizian n
+        chars = ["X","-"]
+
 -- match strings. returns the number of letters which occur at the same place
 match xs ys = sum $ map (\(a,b) -> if a == b then 1; else 0) $ zip xs ys
 
 allCyclicConfigurations xs = [stringCycle xs i | i <- [0..(length xs - 1)]]
 
--- best-match strings
+-- best-match strings in the sense of Barbour
 -- xs is a string that is known, and yss are candidates to match againts
 -- the function returns a list of ys that are best matches
-bestMatchStrings xs yss = [(i, ys) | (i, ys) <- matches, i == m]
+bestMatchStringsBarbour xs yss = [(i, ys) | (i, ys) <- matches, i == m]
     where
         matches = [(match xc yc, ys) | ys <- yss, yc <- allCyclicConfigurations ys, xc <- allCyclicConfigurations xs]
         m = foldl1 max $ map fst matches
+
+--best-match strings using the Levenshtein edit distance
+bestMatchStrings xs yss = [(i, ys) | (i, ys) <- matches, i == m]
+    where
+        matches = [(levenshteinDistance defaultEditCosts xc yc, ys) | ys <- yss, yc <- allCyclicConfigurations ys, xc <- allCyclicConfigurations xs]
+        m = foldl1 min $ map fst matches
+
 
 nextMaximalVarietyStrings xs = map snd $ bestMatchStrings xs $ map snd $ maximalVarietyStrings $ space chars (len + 1)
     where
@@ -136,25 +150,69 @@ stringIsomorphQ s1 s2 = or $ [s1 == stringCycle s2 i | i <- [1..(length s2)]] ++
 -- Returns true if two histories are the same modulo symmetries (cyclic, mirror)
 isomorphHistoriesQ xs ys = and $ map (\(x,y) -> stringIsomorphQ x y) $ zip xs ys
 
+
+-- =========================================
+-- PART #3: CODE TO IMPLEMENT STRING ALGEBRA
+-- =========================================
+
+-- Injects the string ys in to xs after the nth element of xs
+injectStrAt xs ys n = (take n xs) ++ ys ++ (drop n xs)
+
+-- Injects the string ys in to xs at all possible places
+injectStr xs ys = [injectStrAt xs ys n | n <- [0..(length xs - 1)]]
+
+-- Symmetric injection of strings
+injectStrSym xs ys = injectStr xs ys ++ injectStr ys xs
+
+-- Find a substring xs of ys
+matchSubStr xs ys = [ (xs, drop len zs) | zs <- allCyclicConfigurations ys, matchHead xs zs ]
+    where
+        len = length xs
+
+-- Returns True if xs matches the head of zs, and False otherwise.
+matchHead xs zs = if xs == take len zs then
+                    True
+                  else
+                    False
+    where len = length xs
+
+-- Removes a substring xs from ys (of length n) of maximal variety Leibnizian strings
+removeStr xs n = [ drop len zs | ys <- ysCandidate, zs <- allCyclicConfigurations ys, matchHead xs zs ]
+    where
+        len = length xs
+        ysCandidate = maximalVarietyLeibnizianStrings n
+
+-- Removes all Leibnizian maximal variety strings of length m from those that of lenght n.
+removeStrMN m n = [ (xs, ys, varietyP xs, varietyP ys) | xs <- xsCandidate, ys <- removeStr xs n , leibnizianQ ys]
+    where
+        xsCandidate = maximalVarietyLeibnizianStrings m
+
+-- Adds two maximal variety strings of lengths m and n and returns the maximum of variety that is reached.
+addStrMN m n = [ (x,y,z, varietyP x, varietyP y, varietyP z) | (x,y,z) <- zsCandidate, varietyP z == mVar ]
+    where
+        xsCandidate = maximalVarietyLeibnizianStrings m
+        ysCandidate = maximalVarietyLeibnizianStrings n
+        -- Leibnizian additions
+        zsCandidate = [ (xs, ys, xs ++ ys) | xs <- xsCandidate, ys <- ysCandidate, leibnizianQ (xs ++ ys)]
+        mVar = foldl1 max $ map (\(_,_,x) -> varietyP x) zsCandidate
+
 main = do
-    putStrLn "============================="
-    putStrLn "=== BEST MATCHING HISTORY ==="
-    putStrLn "============================="
+    -- putStrLn "============================="
+    -- putStrLn "=== BEST MATCHING HISTORY ==="
+    -- putStrLn "============================="
     
-    mapM (putStrLn.show.reverse) $ nubBy isomorphHistoriesQ $ maximalVarietyChain [["XX-X---"]] 3
-    --mapM (putStrLn.show.reverse) $ nubBy isomorphHistoriesQ $ maximalVarietyChain [["XXX-X---"]] 3
+    -- mapM (putStrLn.show.reverse) $ nubBy isomorphHistoriesQ $ maximalVarietyChain [["XX-X---"]] 3
+    
+    
+    -- mapM (putStrLn.show.reverse) $ nubBy isomorphHistoriesQ $ maximalVarietyChain [["XXX-X---"]] 3
 
     --mapM (putStrLn.show) $ maximalVarietyStrings $ space ["X","-"] 7
 
-    -- shows whether the configurations are Leibnizian
-    --let xs = [x21, x22_1, x22_2, x22_3, x22_4, x23, x24, x25_1, x25_2]
-    --mapM (putStrLn.replacePercentage.show) $ map (\x -> (leibnizianQ x, length x, varietyP x, x)) xs
-
-    -- Prints out the maximal varities of strins of lengths n = 7..25 
+    -- Prints out the maximum varities of strins of lengths n = 6..20 
     --putStrLn "======================"
     --putStrLn "MAXIMAL VARIETY VALUES"
     --putStrLn "======================"
-    --mapM (putStrLn.replacePercentage.show) $ map (\n -> (n, maximalVariety n)) [7..25]
+    --mapM (putStrLn.show) $ map (\n -> (n, maximalVarietyLeibnizian n)) [6..20]
 
     -- putStrLn "=== Length 3 ==="
     -- mapM (putStrLn.show) $ filter (\(x,_,_) -> x) $ map (\x -> (leibnizianQ x, x, varietyP x)) $ space ["X","-"] 3
@@ -165,8 +223,77 @@ main = do
     -- putStrLn "=== Length 6 ==="
     -- mapM (putStrLn.show) $ filter (\(x,_,_) -> x) $ map (\x -> (leibnizianQ x, x, varietyP x)) $ space ["X","-"] 6
     -- putStrLn "=== Length 7 ==="
-    -- mapM (putStrLn.show) $ filter (\(x,_,_) -> x) $ map (\x -> (leibnizianQ x, x, varietyP x)) $ space ["X","-"] 7
-    --mapM (putStrLn.show) $ map (\x -> (x, varietyP x)) $ space ["X","-"] 7
+    --mapM (putStrLn.show) $ map (\(_,x,y) -> (x,y)) $ filter (\(x,_,_) -> x) $ map (\x -> (leibnizianQ x, x, varietyP x)) $ space ["X","-"] 7
+    
+    -- mapM (putStrLn.show) $ map (\x -> (x, varietyP x)) $ space ["X","-"] 7
     
     -- Prints out maximal varieties of string length n which are Leibnizian
     --mapM (putStrLn.replacePercentage.show) $ map (\n -> (n, maximalVarietyLeibnizian n)) [6..15]
+
+    -- Print variety of Leibnizian configuration of length n
+    --putStrLn "String, Variety"
+    --mapM (putStrLn) $ map (\(_,x,y) -> x ++ ", " ++ show (fromRational y)) $ filter (\(x,_,_) -> x) $ map (\x -> (leibnizianQ x, x, varietyP x)) $ space ["X","-"] 15
+
+    -- Print the vairety of all stings of length n
+    --putStrLn "String, Variety"
+    --mapM (putStrLn) $ map (\(_,x,y) -> x ++ ", " ++ show (fromRational y)) $ map (\x -> (leibnizianQ x, x, varietyP x)) $ space ["X","-"] 15
+
+    -- Print the Levenshtein distance between two texts
+    --putStrLn $ show $ levenshteinDistance defaultEditCosts "X-" "-X"
+    --putStrLn $ show $ restrictedDamerauLevenshteinDistance defaultEditCosts "X-" "-X"
+
+
+
+    -- ===========================
+    -- ======= MV CHAIN ==========
+    -- ===========================
+    -- Take the input from command line (str) and find out and print the next maximal variety strings of length (1 + len str)
+    --args <- getArgs
+    --let str = args !! 0
+    --mapM (putStrLn.show.reverse) $ nubBy isomorphHistoriesQ $ maximalVarietyChain [[str]] 1
+    --mapM (putStrLn.show.reverse) $ nubBy isomorphHistoriesQ $ maximalVarietyChain [["XX-X---"]] 3
+
+    -- Takes two command line arguments and prints out the Levenshtein edit distance between them
+    --args <- getArgs
+    --let str1 = args !! 0
+    --let str2 = args !! 1
+    --putStrLn $ show $ levenshteinDistance defaultEditCosts str1 str2
+    
+
+    -- ===========================
+    -- ===== STRING ALGEBRA ======
+    -- ===========================
+    --args <- getArgs
+    --let str1 = args !! 0
+    --let str2 = args !! 1
+    
+    -- Take two command line arguments and inject symmetrically one string into another at all possible places
+    -- and print out the configurations with maximum variety.
+    --let leibnizianInjections = map (\x -> (varietyP x, x)) $ nub $ filter leibnizianQ $ injectStrSym str1 str2
+    --let m = foldl1 max $ map fst leibnizianInjections
+    --mapM (putStrLn.show) $ [ (length x, x, n) | (n, x) <- leibnizianInjections, n == m]
+
+    -- Take two command line arguments and returns matches if xs is a substring of ys.
+    --mapM (putStrLn.show) $ nub $ matchSubStr str1 str2
+
+    -- Take two command line arguments and subtracts xs from maximal variety Leibnizian strings of length n
+    -- if there is a match and calculates the variety of the remaining string.
+    --let m = read str1 :: Int
+    --let n = read str2 :: Int
+    --mapM (putStrLn.show) $ nub $ removeStrMN m n
+    --mapM (putStrLn.show) $ nub $ addStrMN m n
+    --mapM (putStrLn.show) $ map (\x -> (length x, x, varietyP x))
+
+    -- ============================
+    -- ===== SAMPLE PROGRAM =======
+    -- ============================
+    -- Takes one command line argument and returns if the string is Leibnizian or not and its variety.
+    args <- getArgs
+    let str = args !! 0
+    putStrLn $ "String: " ++ str
+    if leibnizianQ str then
+        putStrLn "Leibnizian: True"
+    else
+        putStrLn "Leibnizian: False"
+    
+    putStrLn $ "Variety: " ++ show (varietyP str) 
