@@ -109,8 +109,8 @@ number 1011732022.
 
 # References
 1. Furkan Semih Dündar. "A use of variety as a law of the universe".
-Complex Systems. Vol. 31, Issue 2, pp. 247--260. 2022
+Complex Systems. Vol. 31, Issue 2, pp. 247--260. 2022. [https://doi.org/10.25088/ComplexSystems.31.2.247](https://doi.org/10.25088/ComplexSystems.31.2.247)
 
 2. Furkan Semih Dündar. "Maximal variety Leibnizian strings for large N".
  9th International Congress on Fundamental and Applied Sciences. İstanbul/Turkey,
-June 28--30, 2022
+June 28--30, 2022. [Proceeding Book](http://icfas2022.intsa.org/belg/ICFAS2022_Book_v2.pdf)
