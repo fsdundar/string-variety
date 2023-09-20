@@ -106,6 +106,9 @@ and listing the maximal variety Leibnizian strings ($N \leq 35$) were provided
 by the National Center for High Performance Computing of Turkey (UHeM) under grant
 number 1011732022.
 
+# Citation
+
+If you use the code in your studies, please acknowledge it by citing the article published in Complex Systems as well as the url of this repo.
 
 # References
 1. Furkan Semih Dündar. "A use of variety as a law of the universe".
